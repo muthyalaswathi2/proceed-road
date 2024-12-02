@@ -15,59 +15,37 @@ import java.util.Optional;
 
 import redis.clients.jedis.Jedis;
 
-public class WeatherService {
-
-    private Jedis jedis;
-
-
 @Controller
 public class WeatherController {
-    private final String defaultLocation = "Nürberg";
 
-    @Component
-public class RedisDataLoader implements CommandLineRunner {
-    
+    @Autowired
+    private WeatherService weatherService;
+
     @Autowired
     private StringRedisTemplate redisTemplate;
 
     @Autowired
     private Environment env;
 
-    public WeatherService() {
-        // Connect to Redis running in the Kubernetes cluster (using service name as host)
-        this.jedis = new Jedis("redis", 6379);  // "redis" is the Kubernetes service name
-    }
-
-    public String getWeatherData(String location) {
-        // Fetch weather data from Redis for the given location
-        String weatherData = jedis.get(location);
-
-        // Return weather data, or default data if not found in Redis
-        if (weatherData == null) {
-            return "Weather data not found for " + location;
-        }
-
-        return weatherData;
-    }
-}
-  
+    private final String defaultLocation = "Nürnberg";
 
     @Value("${TARGET:World}")
     String target;
-
-    );
 
     @GetMapping("v1/weather")
     public String getWeather(Model model, @RequestParam(name = "location") Optional<String> optLocation) {
 
         String location = optLocation.orElse(defaultLocation);
-        
+
+        // Fetch temperature and condition from Redis
         String temperature = redisTemplate.opsForHash().get("weather", location + ":temperature");
         String condition = redisTemplate.opsForHash().get("weather", location + ":condition");
 
+        // If weather data is available, display it
         if (temperature != null && condition != null) {
             model.addAttribute("weatherDataAvailable", true);
-            model.addAttribute("weatherData", weatherDataMap.get(location));
+            model.addAttribute("temperature", temperature);
+            model.addAttribute("condition", condition);
         } else {
             model.addAttribute("weatherDataAvailable", false);
         }
@@ -79,8 +57,9 @@ public class RedisDataLoader implements CommandLineRunner {
     }
 
     @GetMapping("/")
-    String hello() {
+    public String hello() {
         return "Hello " + target + "!";
     }
-
 }
+    
+
