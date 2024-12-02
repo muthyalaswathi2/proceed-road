@@ -13,6 +13,13 @@ import org.springframework.web.bind.annotation.RequestParam;
 import java.util.Map;
 import java.util.Optional;
 
+import redis.clients.jedis.Jedis;
+
+public class WeatherService {
+
+    private Jedis jedis;
+
+
 @Controller
 public class WeatherController {
     private final String defaultLocation = "Nürberg";
@@ -26,14 +33,24 @@ public class RedisDataLoader implements CommandLineRunner {
     @Autowired
     private Environment env;
 
-  @PostConstruct
-    public void loadData() {
-        redisTemplate.opsForHash().put("weather", "Nürnberg:temperature", "25.0");
-        redisTemplate.opsForHash().put("weather", "Nürnberg:condition", "cloudless");
-        redisTemplate.opsForHash().put("weather", "Fürth:temperature", "-5.3");
-        redisTemplate.opsForHash().put("weather", "Fürth:condition", "rainy");
+    public WeatherService() {
+        // Connect to Redis running in the Kubernetes cluster (using service name as host)
+        this.jedis = new Jedis("redis", 6379);  // "redis" is the Kubernetes service name
+    }
+
+    public String getWeatherData(String location) {
+        // Fetch weather data from Redis for the given location
+        String weatherData = jedis.get(location);
+
+        // Return weather data, or default data if not found in Redis
+        if (weatherData == null) {
+            return "Weather data not found for " + location;
+        }
+
+        return weatherData;
     }
 }
+  
 
     @Value("${TARGET:World}")
     String target;
