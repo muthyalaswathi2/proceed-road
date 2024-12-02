@@ -17,23 +17,28 @@ import java.util.Optional;
 public class WeatherController {
     private final String defaultLocation = "Nürberg";
 
+    @Component
+public class RedisDataLoader implements CommandLineRunner {
+    @Autowired
+    private StringRedisTemplate redisTemplate;
+
     @Autowired
     private StringRedisTemplate redisTemplate;
 
     @Autowired
     private Environment env;
 
-    @Value("${TARGET:World}")
-    String target;
-
-    @PostConstruct
-    public void loadData() {
-        // Sample data
+    @Override
+    public void run(String... args) throws Exception {
+        // Load sample data into Redis
         redisTemplate.opsForHash().put("weather", "Nürnberg:temperature", "25.0");
         redisTemplate.opsForHash().put("weather", "Nürnberg:condition", "cloudless");
 
         redisTemplate.opsForHash().put("weather", "Fürth:temperature", "-5.3");
         redisTemplate.opsForHash().put("weather", "Fürth:condition", "rainy");
+
+    @Value("${TARGET:World}")
+    String target;
 
     );
 
