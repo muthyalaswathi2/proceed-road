@@ -26,6 +26,15 @@ public class WeatherController {
     @Value("${TARGET:World}")
     String target;
 
+    @PostConstruct
+    public void loadData() {
+        // Sample data
+        redisTemplate.opsForHash().put("weather", "Nürnberg:temperature", "25.0");
+        redisTemplate.opsForHash().put("weather", "Nürnberg:condition", "cloudless");
+
+        redisTemplate.opsForHash().put("weather", "Fürth:temperature", "-5.3");
+        redisTemplate.opsForHash().put("weather", "Fürth:condition", "rainy");
+
     );
 
     @GetMapping("v1/weather")
