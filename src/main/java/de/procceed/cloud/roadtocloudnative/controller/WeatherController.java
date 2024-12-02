@@ -19,23 +19,21 @@ public class WeatherController {
 
     @Component
 public class RedisDataLoader implements CommandLineRunner {
-    @Autowired
-    private StringRedisTemplate redisTemplate;
-
+    
     @Autowired
     private StringRedisTemplate redisTemplate;
 
     @Autowired
     private Environment env;
 
-    @Override
-    public void run(String... args) throws Exception {
-        // Load sample data into Redis
+  @PostConstruct
+    public void loadData() {
         redisTemplate.opsForHash().put("weather", "Nürnberg:temperature", "25.0");
         redisTemplate.opsForHash().put("weather", "Nürnberg:condition", "cloudless");
-
         redisTemplate.opsForHash().put("weather", "Fürth:temperature", "-5.3");
         redisTemplate.opsForHash().put("weather", "Fürth:condition", "rainy");
+    }
+}
 
     @Value("${TARGET:World}")
     String target;
