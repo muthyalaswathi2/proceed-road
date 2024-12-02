@@ -2,6 +2,7 @@ package de.procceed.cloud.roadtocloudnative.controller;
 
 import de.procceed.cloud.roadtocloudnative.model.WeatherData;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.env.Environment;
 import org.springframework.stereotype.Controller;
@@ -17,22 +18,25 @@ public class WeatherController {
     private final String defaultLocation = "Nürberg";
 
     @Autowired
+    private StringRedisTemplate redisTemplate;
+
+    @Autowired
     private Environment env;
 
     @Value("${TARGET:World}")
     String target;
 
-    Map<String, WeatherData> weatherDataMap = Map.of(
-            "Nürnberg", new WeatherData(25.0, "cloudless"),
-            "Fürth", new WeatherData(-5.3, "rainy")
     );
 
     @GetMapping("v1/weather")
     public String getWeather(Model model, @RequestParam(name = "location") Optional<String> optLocation) {
 
         String location = optLocation.orElse(defaultLocation);
+        
+        String temperature = redisTemplate.opsForHash().get("weather", location + ":temperature");
+        String condition = redisTemplate.opsForHash().get("weather", location + ":condition");
 
-        if (weatherDataMap.containsKey(location)) {
+        if (temperature != null && condition != null) {
             model.addAttribute("weatherDataAvailable", true);
             model.addAttribute("weatherData", weatherDataMap.get(location));
         } else {
