@@ -36,7 +36,7 @@ public class WeatherApiController {
 
     @GetMapping("v1/weather")
     public String getWeather(Model model, @RequestParam(name = "location") Optional<String> optLocation) {
-        System.out.println("API endpoint called for /v1/weather");
+        System.out.println("API controller handling request for /v1/weather");
         
         String location = optLocation.orElse(defaultLocation);
 
