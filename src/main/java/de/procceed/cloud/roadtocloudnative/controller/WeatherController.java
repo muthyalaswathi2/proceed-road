@@ -39,7 +39,11 @@ public class WeatherController {
 
         // Fetch temperature and condition from Redis
         String temperature = redisTemplate.opsForHash().get("weather", "weather:" + location + ":temperature");
-        String condition = redisTemplate.opsForHash().get("weather", "weather:" + location + ":condition");
+        String condition = redisTemplate.opsForHash().get("weather", "weather:" + location +  ":condition");
+
+        System.out.println("Fetching data for location: " + location);
+        System.out.println("Temperature: " + temperature);
+        System.out.println("Condition: " + condition);
 
         // If weather data is available, display it
         if (temperature != null && condition != null) {
