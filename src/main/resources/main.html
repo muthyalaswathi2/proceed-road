@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>Weather App</title>
+</head>
+<body>
+
+<h1>Weather for <span th:text="${location}"></span></h1>
+
+<!-- Check if weather data is available -->
+<div th:if="${weatherDataAvailable}">
+    <p>Temperature: <span th:text="${temperature}"></span></p>
+    <p>Condition: <span th:text="${condition}"></span></p>
+</div>
+
+<!-- If no weather data is available -->
+<div th:if="${not weatherDataAvailable}">
+    <p>No weather data available for this location.</p>
+</div>
+
+</body>
+</html>
