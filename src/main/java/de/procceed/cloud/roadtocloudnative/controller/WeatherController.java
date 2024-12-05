@@ -15,8 +15,10 @@ import java.util.Optional;
 
 import redis.clients.jedis.Jedis;
 
-@Controller
-public class WeatherController {
+@RestController
+@RequestMapping("v1")
+public class WeatherApiController {
+
 
     @Autowired
     private WeatherService weatherService;
