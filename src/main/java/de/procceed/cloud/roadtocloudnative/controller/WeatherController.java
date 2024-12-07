@@ -1,27 +1,23 @@
 package de.procceed.cloud.roadtocloudnative.controller;
 
-import de.procceed.cloud.roadtocloudnative.model.WeatherData;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.env.Environment;
-import org.springframework.stereotype.Controller;
-import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
 
+import java.net.URLDecoder;
+import java.nio.charset.StandardCharsets;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
-
-import redis.clients.jedis.Jedis;
 
 @RestController
 @RequestMapping("v1")
 public class WeatherApiController {
-
-
-    @Autowired
-    private WeatherService weatherService;
 
     @Autowired
     private StringRedisTemplate redisTemplate;
@@ -34,33 +30,44 @@ public class WeatherApiController {
     @Value("${TARGET:World}")
     String target;
 
-    @GetMapping("v1/weather")
-    public String getWeather(Model model, @RequestParam(name = "location") Optional<String> optLocation) {
+    @GetMapping("weather")
+    public Map<String, Object> getWeather(@RequestParam(name = "location") Optional<String> optLocation) {
         System.out.println("API controller handling request for /v1/weather");
-        
+
+        // Decode location to handle special characters like "ü"
         String location = optLocation.orElse(defaultLocation);
+        location = URLDecoder.decode(location, StandardCharsets.UTF_8);
+        System.out.println("Location requested: " + location);
 
-        // Fetch temperature and condition from Redis
-        String temperature = redisTemplate.opsForHash().get("weather", "weather:" + location + ":temperature");
-        String condition = redisTemplate.opsForHash().get("weather", "weather:" + location +  ":condition");
+        // Generate Redis keys
+        String keyTemp = "weather:" + location + ":temperature";
+        String keyCond = "weather:" + location + ":condition";
 
-        System.out.println("Fetching data for location: " + location);
-        System.out.println("Temperature: " + temperature);
-        System.out.println("Condition: " + condition);
+        // Fetch data from Redis
+        String temperature = (String) redisTemplate.opsForHash().get("weather", keyTemp);
+        String condition = (String) redisTemplate.opsForHash().get("weather", keyCond);
 
-        // If weather data is available, display it
+        // Logging fetched data
+        System.out.println("Generated Redis key for temperature: " + keyTemp);
+        System.out.println("Generated Redis key for condition: " + keyCond);
+        System.out.println("Fetched temperature: " + temperature);
+        System.out.println("Fetched condition: " + condition);
+
+        // Prepare response
+        Map<String, Object> response = new HashMap<>();
+        response.put("location", location);
+        response.put("hostname", env.getProperty("hostname"));
+
         if (temperature != null && condition != null) {
-            model.addAttribute("weatherDataAvailable", true);
-            model.addAttribute("temperature", temperature);
-            model.addAttribute("condition", condition);
+            response.put("weatherDataAvailable", true);
+            response.put("temperature", temperature);
+            response.put("condition", condition);
         } else {
-            model.addAttribute("weatherDataAvailable", false);
+            response.put("weatherDataAvailable", false);
+            System.out.println("Weather data not available for location: " + location);
         }
 
-        model.addAttribute("location", location);
-        model.addAttribute("hostname", env.getProperty("hostname"));
-
-        return "main";
+        return response;
     }
 
     @GetMapping("/")
@@ -68,5 +75,5 @@ public class WeatherApiController {
         return "Hello " + target + "!";
     }
 }
-    
+
 
