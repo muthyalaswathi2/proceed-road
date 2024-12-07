@@ -35,8 +35,7 @@ public class WeatherApiController {
         System.out.println("API controller handling request for /v1/weather");
 
         // Decode location to handle special characters like "ü"
-        String location = optLocation.orElse(defaultLocation);
-        location = URLDecoder.decode(location, StandardCharsets.UTF_8);
+        String location = URLDecoder.decode(optLocation.orElse(defaultLocation), StandardCharsets.UTF_8);
         System.out.println("Location requested: " + location);
 
         // Generate Redis keys
