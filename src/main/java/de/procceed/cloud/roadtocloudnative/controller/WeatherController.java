@@ -52,9 +52,12 @@ public class WeatherApiController {
         System.out.println("Fetched temperature: " + temperature);
         System.out.println("Fetched condition: " + condition);
 
+
         // Prepare response
         Map<String, Object> response = new HashMap<>();
         response.put("location", location);
+        response.put("temperature", temperature);
+        response.put("condition", condition);
         response.put("hostname", env.getProperty("hostname"));
 
         if (temperature != null && condition != null) {
