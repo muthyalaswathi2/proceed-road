@@ -1,26 +1,23 @@
-<!DOCTYPE HTML>
-<html lang="en" xmlns:th="http://www.thymeleaf.org">
-    <head>
-        <title>kubectl credentials</title>
-        <script src="script.js" type="text/javascript"/></script>
-    </head>
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>Weather App</title>
+</head>
+<body>
 
-    <body>
-        <h1>Best Weather</h1>
-        <div th:if="${weatherDataAvailable}">
-            <p>
-                Today´s weather in
-                <span th:text="${location}"></span>
-                is
-                <span th:text="${weatherData.degree}"></span>
-                degree and
-                <span th:text="${weatherData.state}"></span>
-            </p>
-        </div>
-        <div th:unless="${weatherDataAvailable}">
-            <p>
-                No results for <span th:text="${location}"></span>
-            </p>
-        </div>
-    </body>
+<h1>Weather for <span th:text="${location}"></span></h1>
+
+<!-- Check if weather data is available -->
+<div th:if="${weatherDataAvailable}">
+    <p>Temperature: <span th:text="${temperature}"></span></p>
+    <p>Condition: <span th:text="${condition}"></span></p>
+</div>
+
+<!-- If no weather data is available -->
+<div th:if="${not weatherDataAvailable}">
+    <p>No weather data available for this location.</p>
+</div>
+
+</body>
 </html>
