@@ -25,6 +25,26 @@ public class WeatherApiController {
     @Autowired
     private Environment env;
 
+    @Autowired
+private RedisConnectionFactory redisConnectionFactory;
+
+@GetMapping("weather")
+public Map<String, Object> debugWeather(@RequestParam(name = "location") Optional<String> optLocation) {
+    RedisConnection connection = redisConnectionFactory.getConnection();
+    byte[] tempKey = ("weather:" + optLocation.orElse("Berlin") + ":temperature").getBytes();
+    byte[] condKey = ("weather:" + optLocation.orElse("Berlin") + ":condition").getBytes();
+
+    String temperature = connection.get(tempKey) != null ? new String(connection.get(tempKey)) : null;
+    String condition = connection.get(condKey) != null ? new String(connection.get(condKey)) : null;
+
+    Map<String, Object> response = new HashMap<>();
+    response.put("temperature", temperature);
+    response.put("condition", condition);
+
+    System.out.println("Direct Redis Debug: " + response);
+    return response;
+}
+
     private final String defaultLocation = "Nürnberg";
 
     @Value("${TARGET:World}")
