@@ -44,6 +44,11 @@ public class WeatherApiController {
 
         System.out.println("Redis temperature: " + temperature);
         System.out.println("Redis condition: " + condition);
+        
+        public void testRedisConnection() {
+        System.out.println(redisTemplate.opsForHash().get("weather", "weather:Berlin:temperature"));
+        System.out.println(redisTemplate.opsForHash().get("weather", "weather:Berlin:condition"));
+}
 
 
         // Fetch data from Redis
