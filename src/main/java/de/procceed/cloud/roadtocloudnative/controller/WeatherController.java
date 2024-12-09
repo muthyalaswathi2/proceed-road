@@ -42,6 +42,10 @@ public class WeatherApiController {
         String keyTemp = "weather:" + location + ":temperature";
         String keyCond = "weather:" + location + ":condition";
 
+        System.out.println("Redis temperature: " + temperature);
+        System.out.println("Redis condition: " + condition);
+
+
         // Fetch data from Redis
         String temperature = (String) redisTemplate.opsForHash().get("weather", keyTemp);
         String condition = (String) redisTemplate.opsForHash().get("weather", keyCond);
