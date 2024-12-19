@@ -1,13 +1,16 @@
 package de.procceed.cloud.roadtocloudnative.controller;
 
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.env.Environment;
+import org.springframework.data.redis.connection.RedisConnection;
+import org.springframework.data.redis.connection.RedisConnectionFactory;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.client.RestTemplate;
 
 import java.net.URLDecoder;
 import java.nio.charset.StandardCharsets;
@@ -26,29 +29,36 @@ public class WeatherApiController {
     private Environment env;
 
     @Autowired
-private RedisConnectionFactory redisConnectionFactory;
+    private RedisConnectionFactory redisConnectionFactory;
 
-@GetMapping("weather")
-public Map<String, Object> debugWeather(@RequestParam(name = "location") Optional<String> optLocation) {
-    RedisConnection connection = redisConnectionFactory.getConnection();
-    byte[] tempKey = ("weather:" + optLocation.orElse("Berlin") + ":temperature").getBytes();
-    byte[] condKey = ("weather:" + optLocation.orElse("Berlin") + ":condition").getBytes();
-
-    String temperature = connection.get(tempKey) != null ? new String(connection.get(tempKey)) : null;
-    String condition = connection.get(condKey) != null ? new String(connection.get(condKey)) : null;
-
-    Map<String, Object> response = new HashMap<>();
-    response.put("temperature", temperature);
-    response.put("condition", condition);
-
-    System.out.println("Direct Redis Debug: " + response);
-    return response;
-}
+    @Autowired
+    private RestTemplate restTemplate;
 
     private final String defaultLocation = "Nürnberg";
 
     @Value("${TARGET:World}")
-    String target;
+    private String target;
+
+    @Value("${external.weather.api.url:https://api.weather.com/data}")
+    private String externalApiUrl;
+
+    @GetMapping("weather/debug")
+    public Map<String, Object> debugWeather(@RequestParam(name = "location") Optional<String> optLocation) {
+        RedisConnection connection = redisConnectionFactory.getConnection();
+        String location = optLocation.orElse("Berlin");
+        byte[] tempKey = ("weather:" + location + ":temperature").getBytes();
+        byte[] condKey = ("weather:" + location + ":condition").getBytes();
+
+        String temperature = connection.get(tempKey) != null ? new String(connection.get(tempKey)) : null;
+        String condition = connection.get(condKey) != null ? new String(connection.get(condKey)) : null;
+
+        Map<String, Object> response = new HashMap<>();
+        response.put("temperature", temperature);
+        response.put("condition", condition);
+
+        System.out.println("Direct Redis Debug: " + response);
+        return response;
+    }
 
     @GetMapping("weather")
     public Map<String, Object> getWeather(@RequestParam(name = "location") Optional<String> optLocation) {
@@ -62,25 +72,24 @@ public Map<String, Object> debugWeather(@RequestParam(name = "location") Optiona
         String keyTemp = "weather:" + location + ":temperature";
         String keyCond = "weather:" + location + ":condition";
 
-        System.out.println("Redis temperature: " + temperature);
-        System.out.println("Redis condition: " + condition);
-        
-        public void testRedisConnection() {
-        System.out.println(redisTemplate.opsForHash().get("weather", "weather:Berlin:temperature"));
-        System.out.println(redisTemplate.opsForHash().get("weather", "weather:Berlin:condition"));
-}
-
-
         // Fetch data from Redis
         String temperature = (String) redisTemplate.opsForHash().get("weather", keyTemp);
         String condition = (String) redisTemplate.opsForHash().get("weather", keyCond);
 
-        // Logging fetched data
-        System.out.println("Generated Redis key for temperature: " + keyTemp);
-        System.out.println("Generated Redis key for condition: " + keyCond);
-        System.out.println("Fetched temperature: " + temperature);
-        System.out.println("Fetched condition: " + condition);
+        if (temperature == null || condition == null) {
+            // Fetch from external API if data is not in Redis
+            String apiUrl = String.format("%s?location=%s", externalApiUrl, location);
+            Map<String, String> externalData = restTemplate.getForObject(apiUrl, Map.class);
 
+            if (externalData != null) {
+                temperature = externalData.get("temperature");
+                condition = externalData.get("condition");
+
+                // Store data in Redis for future requests
+                redisTemplate.opsForHash().put("weather", keyTemp, temperature);
+                redisTemplate.opsForHash().put("weather", keyCond, condition);
+            }
+        }
 
         // Prepare response
         Map<String, Object> response = new HashMap<>();
@@ -88,13 +97,9 @@ public Map<String, Object> debugWeather(@RequestParam(name = "location") Optiona
         response.put("temperature", temperature);
         response.put("condition", condition);
         response.put("hostname", env.getProperty("hostname"));
+        response.put("weatherDataAvailable", temperature != null && condition != null);
 
-        if (temperature != null && condition != null) {
-            response.put("weatherDataAvailable", true);
-            response.put("temperature", temperature);
-            response.put("condition", condition);
-        } else {
-            response.put("weatherDataAvailable", false);
+        if (temperature == null || condition == null) {
             System.out.println("Weather data not available for location: " + location);
         }
 
@@ -106,5 +111,3 @@ public Map<String, Object> debugWeather(@RequestParam(name = "location") Optiona
         return "Hello " + target + "!";
     }
 }
-
-
