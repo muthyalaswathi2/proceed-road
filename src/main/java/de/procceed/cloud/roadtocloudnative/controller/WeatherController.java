@@ -1,113 +1,130 @@
 package de.procceed.cloud.roadtocloudnative.controller;
 
+import de.procceed.cloud.roadtocloudnative.model.WeatherData;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.env.Environment;
-import org.springframework.data.redis.connection.RedisConnection;
-import org.springframework.data.redis.connection.RedisConnectionFactory;
-import org.springframework.data.redis.core.StringRedisTemplate;
+import org.springframework.stereotype.Controller;
+import org.springframework.ui.Model;
 import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.client.RestTemplate;
 
-import java.net.URLDecoder;
-import java.nio.charset.StandardCharsets;
-import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
 
-@RestController
-@RequestMapping("v1")
-public class WeatherApiController {
-
-    @Autowired
-    private StringRedisTemplate redisTemplate;
+@Controller
+public class WeatherController {
+    private final String defaultLocation = "Nürnberg";
 
     @Autowired
     private Environment env;
 
-    @Autowired
-    private RedisConnectionFactory redisConnectionFactory;
+    @Value("${TARGET:World}")
+    String target;
+
+    @Value("${echo.server.url:http://localhost:8081/echo}")
+    private String echoServerUrl;
 
     @Autowired
     private RestTemplate restTemplate;
 
-    private final String defaultLocation = "Nürnberg";
+    Map<String, WeatherData> weatherDataMap = Map.of(
+            "Nürnberg", new WeatherData(25.0, "cloudless"),
+            "Fürth", new WeatherData(-5.3, "rainy")
+    );
 
-    @Value("${TARGET:World}")
-    private String target;
+    @GetMapping("v1/weather")
+    public String getWeather(Model model, @RequestParam(name = "location") Optional<String> optLocation) {
+        String location = optLocation.orElse(defaultLocation);
 
-    @Value("${external.weather.api.url:https://api.weather.com/data}")
-    private String externalApiUrl;
+        if (weatherDataMap.containsKey(location)) {
+            WeatherData weatherData = weatherDataMap.get(location);
 
-    @GetMapping("weather/debug")
-    public Map<String, Object> debugWeather(@RequestParam(name = "location") Optional<String> optLocation) {
-        RedisConnection connection = redisConnectionFactory.getConnection();
-        String location = optLocation.orElse("Berlin");
-        byte[] tempKey = ("weather:" + location + ":temperature").getBytes();
-        byte[] condKey = ("weather:" + location + ":condition").getBytes();
+            // Send weather data to the Echo server
+            String echoResponse = restTemplate.postForObject(echoServerUrl, weatherData, String.class);
 
-        String temperature = connection.get(tempKey) != null ? new String(connection.get(tempKey)) : null;
-        String condition = connection.get(condKey) != null ? new String(connection.get(condKey)) : null;
-
-        Map<String, Object> response = new HashMap<>();
-        response.put("temperature", temperature);
-        response.put("condition", condition);
-
-        System.out.println("Direct Redis Debug: " + response);
-        return response;
-    }
-
-    @GetMapping("weather")
-    public Map<String, Object> getWeather(@RequestParam(name = "location") Optional<String> optLocation) {
-        System.out.println("API controller handling request for /v1/weather");
-
-        // Decode location to handle special characters like "ü"
-        String location = URLDecoder.decode(optLocation.orElse(defaultLocation), StandardCharsets.UTF_8);
-        System.out.println("Location requested: " + location);
-
-        // Generate Redis keys
-        String keyTemp = "weather:" + location + ":temperature";
-        String keyCond = "weather:" + location + ":condition";
-
-        // Fetch data from Redis
-        String temperature = (String) redisTemplate.opsForHash().get("weather", keyTemp);
-        String condition = (String) redisTemplate.opsForHash().get("weather", keyCond);
-
-        if (temperature == null || condition == null) {
-            // Fetch from external API if data is not in Redis
-            String apiUrl = String.format("%s?location=%s", externalApiUrl, location);
-            Map<String, String> externalData = restTemplate.getForObject(apiUrl, Map.class);
-
-            if (externalData != null) {
-                temperature = externalData.get("temperature");
-                condition = externalData.get("condition");
-
-                // Store data in Redis for future requests
-                redisTemplate.opsForHash().put("weather", keyTemp, temperature);
-                redisTemplate.opsForHash().put("weather", keyCond, condition);
-            }
+            model.addAttribute("weatherDataAvailable", true);
+            model.addAttribute("weatherData", weatherData);
+            model.addAttribute("echoResponse", echoResponse); // Include response from Echo server
+        } else {
+            model.addAttribute("weatherDataAvailable", false);
         }
 
-        // Prepare response
-        Map<String, Object> response = new HashMap<>();
-        response.put("location", location);
-        response.put("temperature", temperature);
-        response.put("condition", condition);
-        response.put("hostname", env.getProperty("hostname"));
-        response.put("weatherDataAvailable", temperature != null && condition != null);
+        model.addAttribute("location", location);
+        model.addAttribute("hostname", env.getProperty("hostname"));
 
-        if (temperature == null || condition == null) {
-            System.out.println("Weather data not available for location: " + location);
-        }
-
-        return response;
+        return "main"; // Render the "main.html" template
     }
 
     @GetMapping("/")
-    public String hello() {
+    String hello() {
         return "Hello " + target + "!";
+    }
+}
+
+package de.procceed.cloud.roadtocloudnative.model;
+
+import java.io.Serializable;
+
+public class WeatherData implements Serializable {
+    private double temperature;
+    private String description;
+
+    // Constructors
+    public WeatherData(double temperature, String description) {
+        this.temperature = temperature;
+        this.description = description;
+    }
+
+    public WeatherData() {}
+
+    // Getters and setters
+    public double getTemperature() {
+        return temperature;
+    }
+
+    public void setTemperature(double temperature) {
+        this.temperature = temperature;
+    }
+
+    public String getDescription() {
+        return description;
+    }
+
+    public void setDescription(String description) {
+        this.description = description;
+    }
+
+    @Override
+    public String toString() {
+        return "WeatherData{" +
+                "temperature=" + temperature +
+                ", description='" + description + '\'' +
+                '}';
+    }
+}
+
+package de.procceed.cloud.roadtocloudnative.config;
+
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.web.client.RestTemplate;
+
+@Configuration
+public class AppConfig {
+
+    @Bean
+    public RestTemplate restTemplate() {
+        return new RestTemplate();
+    }
+}
+
+@RestController
+public class EchoController {
+
+    @PostMapping("/echo")
+    public String echoWeatherData(@RequestBody WeatherData weatherData) {
+        return "Echo: " + weatherData.toString();
     }
 }
